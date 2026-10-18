@@ -2,14 +2,44 @@
 
 เว็บแอปบันทึกการใช้รถ ค่าน้ำมัน และงานซ่อม/บำรุงรักษารถโรงงาน สำหรับพนักงานผู้ควบคุมการใช้รถที่ผ่าน TSM ของกรมการขนส่งทางบก
 
-- หน้าเว็บ: `docs/` (GitHub Pages) → https://tongo51.github.io/tsm/
-- Backend: `gas/Code.js` (Google Apps Script web app) เก็บข้อมูลลง Google Sheet "TSM"
-- ทดสอบบนเครื่อง: `node dev/server.js test` (ชุดทดสอบ) หรือ `node dev/server.js` แล้วเปิด http://localhost:8787 (ใช้ชีตจำลองในหน่วยความจำ)
+- หน้าเว็บ: https://tongo51.github.io/tsm/ (`docs/`)
+- Backend: `gas/Code.js` (Google Apps Script web app) → Google Sheet "TSM"
+- เอกสารจุดเชื่อมกับระบบอื่น: `C:\Meeting_room\system-overview\interfaces\TSM.md`
 
-## แก้ backend แล้ว deploy ใหม่
+## ฟีเจอร์
+
+| หน้า | ใครเห็น | ทำอะไร |
+|------|---------|--------|
+| บันทึก | ทุกคน (เฉพาะรถที่ประจำ, ผู้ดูแลเห็นทุกคัน) | ใช้รถ (ไมล์เริ่ม/สิ้นสุด) · เติมน้ำมัน (ไมล์ ลิตร บาท) · ซ่อม/บำรุง (+ นัดเลขไมล์ครั้งถัดไป) |
+| ประวัติ | ทุกคน | กรองตามประเภท/รถ/เดือน · พนักงานลบได้เฉพาะของตัวเองที่บันทึกวันนี้ ผู้ดูแลลบได้ทั้งหมด |
+| ภาพรวม | ทุกคน | ค่าใช้จ่ายเดือน · ต้นทุน/กม. · กราฟ 6 เดือน · รายคัน · แจ้งเตือนภาษี/บำรุงรักษา/ใบ TSM |
+| ผู้ดูแล | admin | รถ (ทะเบียน, ภาษี, พนักงานประจำ, **สายส่งในแอปขาย**) · ผู้ใช้ (สิทธิ์, เลข/วันหมดอายุใบ TSM, รีเซ็ตรหัส) |
+
+ข้อมูลปิดวันจาก **GoPMaS Mobile POS** (แอปขาย) ไหลเข้ามาเองผ่าน `posDay` — รถผูกกับสายในหน้าผู้ดูแล
+
+## โครงสร้าง
+
+```
+docs/        หน้าเว็บ (GitHub Pages)
+gas/         Apps Script — Code.js, appsscript.json, secret.js (กุญแจร่วมกับ POS, ไม่ขึ้น git)
+dev/         server.js = ชีตจำลอง + ชุดทดสอบ · pos-stub.js = เปิดหน้าแอปขายกับ backend จำลอง
+```
+
+## พัฒนา / deploy
+
+```bash
+node dev/server.js test
+```
 
 ```bash
 cd gas && clasp push --force && clasp redeploy AKfycbxu0EcH5P0lXWCKOCp64f45jqpwim1EDujU5pHIJBsRcdb300PODpiuY-V2nAHbLD9c
 ```
 
-ใช้ deployment เดิม URL จึงไม่เปลี่ยน และไม่ต้องแก้ `docs/app.js`
+- ใช้ deployment เดิมเสมอ URL จึงไม่เปลี่ยน (hardcode อยู่ใน `docs/app.js` และใน POS)
+- `gas/secret.js` ต้องมีอยู่ในเครื่องตอน push — หายเมื่อไรคำสั่งจากแอปขายจะได้ "ไม่มีสิทธิ์"
+- หน้าเว็บ: commit + push ขึ้น `main` แล้ว GitHub Pages อัปเดตเองใน ~1 นาที
+
+## บัญชี
+
+- ชีต TSM: เจ้าของ gpicezy · แชร์ tongo51 เป็นผู้แก้ไข · ลิงก์สาธารณะต้อง **ปิด** (repo นี้ public และมี ID ชีต)
+- Apps Script + clasp: tongo51 · รัน `setup()` ซ้ำได้ (สร้างแท็บ/หัวตารางที่ขาด ไม่ลบข้อมูล)
