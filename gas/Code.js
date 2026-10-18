@@ -12,7 +12,7 @@ const SCHEMA = {
   Users: { tab: 'ผู้ใช้', cols: [['username', 'ชื่อผู้ใช้'], ['name', 'ชื่อ-สกุล'], ['role', 'สิทธิ์'],
     ['tsmNo', 'เลขที่ใบรับรอง TSM'], ['tsmExpire', 'ใบรับรอง TSM หมดอายุ', 'd'], ['salt', 'salt'], ['hash', 'hash']] },
   Vehicles: { tab: 'รถ', cols: [['plate', 'ทะเบียน'], ['name', 'ยี่ห้อ/รุ่น/ประเภท'],
-    ['taxExpire', 'ภาษี/พ.ร.บ. หมดอายุ', 'd'], ['staff', 'พนักงานประจำรถ'], ['note', 'หมายเหตุ']] },
+    ['taxExpire', 'ภาษี/พ.ร.บ. หมดอายุ', 'd'], ['staff', 'พนักงานประจำรถ'], ['note', 'หมายเหตุ'], ['line', 'สายส่ง (แอปขาย)']] },
   Usage: { tab: 'บันทึกการใช้รถ', cols: [['id', 'id'], ['date', 'วันที่', 'd'], ['plate', 'ทะเบียน'],
     ['startKm', 'ไมล์เริ่ม', 'n'], ['endKm', 'ไมล์สิ้นสุด', 'n'], ['distance', 'ระยะทาง (กม.)', 'n'],
     ['purpose', 'ภารกิจ/เส้นทาง'], ['note', 'หมายเหตุ'], ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก']] },
@@ -25,7 +25,9 @@ const SCHEMA = {
 };
 const LOGS = { usage: 'Usage', fuel: 'Fuel', repair: 'Repairs' };
 const KINDS = ['บำรุงรักษา', 'ซ่อม'];
-const WRITES = ['add', 'del', 'saveVehicle', 'delVehicle', 'saveUser', 'delUser', 'changePassword'];
+const WRITES = ['add', 'del', 'saveVehicle', 'delVehicle', 'saveUser', 'delUser', 'changePassword', 'posDay'];
+// คำสั่งจากระบบอื่น (backend แอปขาย GoPMaS Mobile POS) — ยืนยันด้วยกุญแจร่วม INGEST_KEY ใน gas/secret.js (ไม่ขึ้น git)
+const KEYED = ['posVehicles', 'posDay'];
 
 // ================= entry =================
 function doPost(e) {
@@ -34,7 +36,7 @@ function doPost(e) {
     const req = JSON.parse(e.postData.contents);
     const fn = API[req.action] || fail('ไม่รู้จักคำสั่งนี้');
     if (WRITES.includes(req.action)) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
-    const user = req.action === 'login' ? null : auth(req.token);
+    const user = req.action === 'login' ? null : KEYED.includes(req.action) ? keyAuth(req.key) : auth(req.token);
     out = { ok: true, data: fn(req, user) };
   } catch (err) {
     out = { ok: false, error: err.message, relogin: err.relogin || undefined };
@@ -91,10 +93,7 @@ const API = {
     const base = { id: Utilities.getUuid().slice(0, 8), date: date(r.date), plate, note: txt(r.note), by: user.username, at: stamp() };
     let o;
     if (name === 'Usage') {
-      const startKm = num(r.startKm, 'เลขไมล์เริ่มต้น'), endKm = num(r.endKm, 'เลขไมล์สิ้นสุด');
-      if (endKm < startKm) fail('เลขไมล์สิ้นสุดต้องไม่น้อยกว่าเลขไมล์เริ่มต้น');
-      if (endKm - startKm > 3000) fail('ระยะทางเกิน 3,000 กม. ในครั้งเดียว กรุณาตรวจเลขไมล์อีกครั้ง');
-      o = { ...base, startKm, endKm, distance: round(endKm - startKm), purpose: txt(r.purpose) };
+      o = { ...base, ...usageKm(r), purpose: txt(r.purpose) };
     } else if (name === 'Fuel') {
       o = { ...base, km: num(r.km, 'เลขไมล์'), liters: num(r.liters, 'จำนวนลิตร'), amount: num(r.amount, 'จำนวนเงิน'), station: txt(r.station) };
       if (!(o.liters > 0 && o.amount > 0)) fail('จำนวนลิตรและจำนวนเงินต้องมากกว่า 0');
@@ -166,6 +165,32 @@ const API = {
       totals: { distance: total('distance'), liters: total('liters'), fuel: total('fuel'), repair: total('repair'), trips: total('trips'), vehicles: vs.length } };
   },
 
+  // ---------- แอปขาย (ยืนยันด้วยกุญแจ) ----------
+  posVehicles() {
+    const km = mileage(logs());
+    return readAll('Vehicles').map(v => ({ plate: v.plate, name: v.name, line: v.line, lastKm: km[v.plate] || 0 }));
+  },
+
+  // ปิดวันของสายหนึ่ง → บันทึกการใช้รถ + ค่าน้ำมัน + ค่าแก๊ส · id คงที่ต่อ วัน+สาย จึงส่งซ้ำ/ส่งแก้ไขได้ (เขียนทับ ไม่เพิ่มแถว)
+  posDay(req) {
+    const d = date(req.date), line = txt(req.line, 30) || fail('ไม่ระบุสาย'), plate = txt(req.plate, 30);
+    readAll('Vehicles').some(v => v.plate === plate) || fail('ไม่พบรถทะเบียน ' + plate + ' ในระบบ TSM');
+    const by = (req.employees || []).map(e => txt(e, 40)).filter(Boolean).join(', ') || 'แอปขาย';
+    const base = { date: d, plate, by, at: stamp(), note: 'แอปขาย สาย ' + line };
+    const id = k => ['pos', d, line, k].join('-');
+    const has = v => v !== '' && v != null;
+    // ตรวจครบทุกส่วนก่อน แล้วค่อยเขียน — ไม่ให้เหลือข้อมูลครึ่งๆ กลางๆ
+    const use = has(req.startKm) || has(req.endKm) ? { ...base, id: id('use'), ...usageKm(req), purpose: '' } : null;
+    const km = use ? use.endKm : '';
+    const fuel = Number(req.fuel) > 0 ? { ...base, id: id('fuel'), km, liters: num(req.liters, 'จำนวนลิตรน้ำมัน'), amount: num(req.fuel, 'ค่าน้ำมัน'), station: 'น้ำมัน' } : null;
+    if (fuel && !(fuel.liters > 0)) fail('กรุณากรอกจำนวนลิตรน้ำมัน');
+    const gas = Number(req.gas) > 0 ? { ...base, id: id('gas'), km, liters: '', amount: num(req.gas, 'ค่าแก๊ส'), station: 'แก๊ส' } : null;
+    upsert('Usage', id('use'), use);
+    upsert('Fuel', id('fuel'), fuel);
+    upsert('Fuel', id('gas'), gas);
+    return { use, fuel, gas };
+  },
+
   changePassword(req, user) {
     if (hashPw(String(req.old || ''), user.salt) !== user.hash) fail('รหัสผ่านเดิมไม่ถูกต้อง');
     const o = { ...user, ...newPw(req.password) };
@@ -182,7 +207,10 @@ const API = {
     if (req.isNew && old) fail('มีรถทะเบียนนี้อยู่แล้ว');
     const usernames = readAll('Users').map(u => u.username);
     const o = { ...old, plate, name: txt(v.name), taxExpire: date(v.taxExpire, 'วันหมดอายุภาษี', false),
-      staff: (v.staff || []).filter(s => usernames.includes(s)).join(','), note: txt(v.note) };
+      staff: (v.staff || []).filter(s => usernames.includes(s)).join(','), note: txt(v.note), line: txt(v.line, 30).toUpperCase() };
+    const taken = o.line && readAll('Vehicles').find(x => x.plate !== plate && x.line === o.line);
+    if (taken) fail('สาย ' + o.line + ' ผูกกับรถ ' + taken.plate + ' อยู่แล้ว');
+    header('Vehicles');  // ชีตที่ setup ไว้ก่อนมีคอลัมน์สาย จะได้หัวคอลัมน์ใหม่เอง
     old ? update('Vehicles', o) : append('Vehicles', o);
     return bootData(user);
   },
@@ -270,6 +298,11 @@ function auth(token) {
   }
   return user;
 }
+function keyAuth(key) {
+  const k = typeof INGEST_KEY === 'undefined' ? '' : INGEST_KEY;
+  if (!k || key !== k) fail('ไม่มีสิทธิ์');
+  return { username: '', role: 'pos' };
+}
 const pub = u => ({ username: u.username, name: u.name, role: u.role, tsmNo: u.tsmNo, tsmExpire: u.tsmExpire });
 const findUser = username => readAll('Users').find(u => u.username === username);
 const isAdmin = u => u.role === 'admin';
@@ -308,6 +341,13 @@ const append = (name, o) => tab(name).appendRow(toRow(name, o));
 const update = (name, o) => tab(name).getRange(o._row, 1, 1, SCHEMA[name].cols.length).setValues([toRow(name, o)]);
 const remove = (name, o) => tab(name).deleteRow(o._row);
 const strip = ({ _row, ...o }) => o;
+const header = name => tab(name).getRange(1, 1, 1, SCHEMA[name].cols.length).setValues([SCHEMA[name].cols.map(c => c[1])]);
+function upsert(name, id, o) {
+  const old = readAll(name).find(r => r.id === id);
+  if (old && o) update(name, { ...o, _row: old._row });
+  else if (old) remove(name, old);
+  else if (o) append(name, o);
+}
 const logs = () => ({ Usage: readAll('Usage'), Fuel: readAll('Fuel'), Repairs: readAll('Repairs') });
 // รอบบำรุงรักษา = งาน "บำรุงรักษา" ครั้งล่าสุด: ทำที่เลขไมล์ไหน นัดครั้งถัดไปที่เลขไมล์ไหน
 function service(L, plate) {
@@ -337,6 +377,12 @@ function num(v, label, required = true) {
   const n = Number(v);
   if (!isFinite(n) || n < 0) fail(label + 'ไม่ถูกต้อง');
   return round(n);
+}
+function usageKm(r) {
+  const startKm = num(r.startKm, 'เลขไมล์เริ่มต้น'), endKm = num(r.endKm, 'เลขไมล์สิ้นสุด');
+  if (endKm < startKm) fail('เลขไมล์สิ้นสุดต้องไม่น้อยกว่าเลขไมล์เริ่มต้น');
+  if (endKm - startKm > 3000) fail('ระยะทางเกิน 3,000 กม. ในครั้งเดียว กรุณาตรวจเลขไมล์อีกครั้ง');
+  return { startKm, endKm, distance: round(endKm - startKm) };
 }
 function date(v, label = 'วันที่', required = true) {
   v = txt(v);

@@ -51,6 +51,7 @@ const ctx = {
   ContentService: { MimeType: { JSON: 'json' }, createTextOutput: s => ({ s, setMimeType() { return this; } }) },
   Logger: { log: m => logs.push(m) },
 };
+ctx.INGEST_KEY = 'dev-key';  // ของจริงอยู่ใน gas/secret.js
 vm.createContext(ctx);
 VDate = vm.runInContext('Date', ctx);
 vm.runInContext(fs.readFileSync(path.join(__dirname, '../gas/Code.js'), 'utf8'), ctx);
@@ -101,6 +102,23 @@ if (process.argv[2] === 'test') {
   ok(call('delUser', { token: at, username: 'somchai' }));
   assert.deepStrictEqual(ok(call('boot', { token: at })).vehicles[0].staff, [], 'ลบผู้ใช้แล้วหลุดจากรถ');
   assert(call('boot', { token: np.token }).relogin, 'ผู้ใช้ที่ถูกลบต้องเข้าไม่ได้');
+  // ---- แอปขายส่งปิดวันเข้ามา ----
+  ok(call('saveVehicle', { token: at, vehicle: { plate: '70-1234', name: 'อีซูซุ 6 ล้อ', line: 'l1' } }));
+  assert(/ผูกกับรถ 70-1234/.test(call('saveVehicle', { token: at, vehicle: { plate: 'ผก 999', line: 'L1' } }).error), 'สายซ้ำคันไม่ได้');
+  assert(!call('posVehicles', { key: 'wrong' }).ok, 'กุญแจผิดต้องเข้าไม่ได้');
+  assert(!call('posVehicles', { token: at }).ok, 'โทเคนผู้ใช้ใช้กับคำสั่งแอปขายไม่ได้');
+  const pv = ok(call('posVehicles', { key: 'dev-key' }));
+  assert.strictEqual(pv.find(v => v.plate === '70-1234').line, 'L1');
+  const day = { key: 'dev-key', date: '2026-10-17', line: 'L1', plate: '70-1234', employees: ['ต้น', 'เอ'], startKm: 1120, endKm: 1200, fuel: 1000, liters: 30, gas: 300 };
+  assert(/ลิตร/.test(call('posDay', { ...day, liters: '' }).error), 'มีค่าน้ำมันต้องมีลิตร');
+  assert.strictEqual(ok(call('list', { token: at, table: 'fuel', month: '2026-10' })).filter(r => r.id.startsWith('pos-')).length, 0, 'ตรวจไม่ผ่านต้องไม่เขียนอะไรเลย');
+  ok(call('posDay', day));
+  ok(call('posDay', { ...day, endKm: 1210, gas: 0 }));   // ส่งแก้ไข: ทับแถวเดิม ลบแก๊สออก
+  const pu = ok(call('list', { token: at, table: 'usage', month: '2026-10' })).filter(r => r.id.startsWith('pos-'));
+  const pf = ok(call('list', { token: at, table: 'fuel', month: '2026-10' })).filter(r => r.id.startsWith('pos-'));
+  assert.deepStrictEqual([pu.length, pu[0].distance, pu[0].by], [1, 90, 'ต้น, เอ']);
+  assert.deepStrictEqual(pf.map(r => [r.station, r.amount, r.km]), [['น้ำมัน', 1000, 1210]]);
+  assert(!call('posDay', { ...day, plate: 'ไม่มี' }).ok, 'ทะเบียนที่ไม่มีในระบบ');
   for (let i = 0; i < 5; i++) call('login', { username: 'somsri', password: 'bad' });
   assert(/15 นาที/.test(call('login', { username: 'somsri', password: 'pass1234' }).error), 'ล็อกหลังผิด 5 ครั้ง');
   console.log('ALL TESTS PASSED');

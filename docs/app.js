@@ -179,7 +179,7 @@ const TYPES = {
   usage: { sum: rows => `<span>${rows.length} เที่ยว</span><span>รวม <b>${n(sumOf(rows, 'distance'))}</b> กม.</span>`,
     item: r => [esc(r.purpose || 'ใช้รถ'), `${n(r.startKm)} → ${n(r.endKm)}`, `<b>${n(r.distance)} กม.</b>`] },
   fuel: { sum: rows => `<span>${n(sumOf(rows, 'liters'))} ลิตร</span><b>${baht(sumOf(rows, 'amount'))}</b>`,
-    item: r => [esc(r.station || 'เติมน้ำมัน'), `${n(r.liters)} ลิตร · ${n(r.amount / r.liters)} บ./ลิตร · ไมล์ ${n(r.km)}`, `<b>${baht(r.amount)}</b>`] },
+    item: r => [esc(r.station || 'เติมน้ำมัน'), [r.liters ? `${n(r.liters)} ลิตร · ${n(r.amount / r.liters)} บ./ลิตร` : 'ไม่ระบุลิตร', r.km !== '' && 'ไมล์ ' + n(r.km)].filter(Boolean).join(' · '), `<b>${baht(r.amount)}</b>`] },
   repair: { sum: rows => `<span>${rows.length} รายการ</span><b>${baht(sumOf(rows, 'cost'))}</b>`,
     item: r => [esc(r.detail), [r.shop && esc(r.shop), 'ไมล์ ' + n(r.km), r.nextKm !== '' && 'นัดครั้งถัดไป ' + n(r.nextKm)].filter(Boolean).join(' · '),
       `<b>${baht(r.cost)}</b><span class="tag ${r.kind === 'ซ่อม' ? 'warn' : 'gold'}">${esc(r.kind)}</span>`] },
@@ -317,7 +317,7 @@ function renderAdmin() {
     : admTab === 'vehicles' ? list.map((v, i) => `<button class="item" data-i="${i}">${plateChip(v, false, 'span', 'sm')}
         <span class="item-main"><span class="item-title">${esc(v.name || '–')}</span>
         <span class="meta">${v.staff.length ? 'ประจำรถ: ' + v.staff.map(u => esc(nameOf(u))).join(', ') : 'ยังไม่มีพนักงานประจำ'}</span></span>
-        <span class="item-side">${expiryTag(v.taxExpire, 'ภาษี')}<span class="meta num">${n(v.lastKm)} กม.</span></span></button>`).join('')
+        <span class="item-side">${v.line ? `<span class="tag gold">สาย ${esc(v.line)}</span>` : ''}${expiryTag(v.taxExpire, 'ภาษี')}<span class="meta num">${n(v.lastKm)} กม.</span></span></button>`).join('')
     : list.map((u, i) => `<button class="item" data-i="${i}"><span class="av">${esc((u.name || u.username)[0])}</span>
         <span class="item-main"><span class="item-title">${esc(u.name)}${u.username === S.user.username ? ' <span class="meta">(คุณ)</span>' : ''}</span>
         <span class="meta">${esc(u.username)}${u.tsmNo ? ' · TSM ' + esc(u.tsmNo) : ''}</span></span>
@@ -357,7 +357,8 @@ function editVehicle(v) {
   openDialog(`<h3>${isNew ? 'เพิ่มรถ' : 'แก้ไขรถ ' + esc(v.plate)}</h3>
     ${field('ทะเบียนรถ', `<input name="plate" required maxlength="30" value="${esc(v.plate)}" ${isNew ? 'placeholder="เช่น 70-1234 นครปฐม"' : 'readonly'}>`)}
     ${field('ยี่ห้อ / รุ่น / ประเภท', `<input name="name" maxlength="300" value="${esc(v.name)}" placeholder="เช่น อีซูซุ 6 ล้อ ห้องเย็น">`)}
-    ${field('ภาษี / พ.ร.บ. หมดอายุ <i>(ไม่บังคับ)</i>', `<input type="date" name="taxExpire" value="${esc(v.taxExpire)}">`)}
+    <div class="row2">${field('ภาษี / พ.ร.บ. หมดอายุ <i>(ไม่บังคับ)</i>', `<input type="date" name="taxExpire" value="${esc(v.taxExpire)}">`)}
+    ${field('สายส่งในแอปขาย <i>(ไม่บังคับ)</i>', `<input name="line" maxlength="30" autocapitalize="characters" value="${esc(v.line)}" placeholder="เช่น L1">`)}</div>
     <div class="field"><span>พนักงานประจำรถ</span><div class="checks">${S.users.map(u => `<label class="check"><input type="checkbox" name="staff" value="${esc(u.username)}"${v.staff.includes(u.username) ? ' checked' : ''}>${esc(u.name)}</label>`).join('') || '<span class="meta">ยังไม่มีผู้ใช้</span>'}</div></div>
     ${field('หมายเหตุ <i>(ไม่บังคับ)</i>', `<input name="note" maxlength="300" value="${esc(v.note)}">`)}`,
   f => api('saveVehicle', { isNew, vehicle: { ...Object.fromEntries(f), staff: f.getAll('staff') } }),
