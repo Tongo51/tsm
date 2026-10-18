@@ -177,7 +177,7 @@ $$('form.rec').forEach(f => {
 // ================= history =================
 const TYPES = {
   usage: { sum: rows => `<span>${rows.length} เที่ยว</span><span>รวม <b>${n(sumOf(rows, 'distance'))}</b> กม.</span>`,
-    item: r => [esc(r.purpose), `${n(r.startKm)} → ${n(r.endKm)}`, `<b>${n(r.distance)} กม.</b>`] },
+    item: r => [esc(r.purpose || 'ใช้รถ'), `${n(r.startKm)} → ${n(r.endKm)}`, `<b>${n(r.distance)} กม.</b>`] },
   fuel: { sum: rows => `<span>${n(sumOf(rows, 'liters'))} ลิตร</span><b>${baht(sumOf(rows, 'amount'))}</b>`,
     item: r => [esc(r.station || 'เติมน้ำมัน'), `${n(r.liters)} ลิตร · ${n(r.amount / r.liters)} บ./ลิตร · ไมล์ ${n(r.km)}`, `<b>${baht(r.amount)}</b>`] },
   repair: { sum: rows => `<span>${rows.length} รายการ</span><b>${baht(sumOf(rows, 'cost'))}</b>`,

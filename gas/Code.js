@@ -94,7 +94,7 @@ const API = {
       const startKm = num(r.startKm, 'เลขไมล์เริ่มต้น'), endKm = num(r.endKm, 'เลขไมล์สิ้นสุด');
       if (endKm < startKm) fail('เลขไมล์สิ้นสุดต้องไม่น้อยกว่าเลขไมล์เริ่มต้น');
       if (endKm - startKm > 3000) fail('ระยะทางเกิน 3,000 กม. ในครั้งเดียว กรุณาตรวจเลขไมล์อีกครั้ง');
-      o = { ...base, startKm, endKm, distance: round(endKm - startKm), purpose: txt(r.purpose) || fail('กรุณากรอกภารกิจ/เส้นทาง') };
+      o = { ...base, startKm, endKm, distance: round(endKm - startKm), purpose: txt(r.purpose) };
     } else if (name === 'Fuel') {
       o = { ...base, km: num(r.km, 'เลขไมล์'), liters: num(r.liters, 'จำนวนลิตร'), amount: num(r.amount, 'จำนวนเงิน'), station: txt(r.station) };
       if (!(o.liters > 0 && o.amount > 0)) fail('จำนวนลิตรและจำนวนเงินต้องมากกว่า 0');
