@@ -75,12 +75,12 @@ if (process.argv[2] === 'test') {
   ok(call('saveVehicle', { token: at, isNew: true, vehicle: { plate: '70-1234', name: 'อีซูซุ 6 ล้อ', taxExpire: '2026-11-01', staff: ['somchai', 'ghost'] } }));
   ok(call('saveVehicle', { token: at, isNew: true, vehicle: { plate: 'ผก 999', name: 'กระบะ' } }));
   const S = ok(call('login', { username: 'somchai', password: 'pass1234' })), st = S.token;
-  assert.deepStrictEqual(S.vehicles.map(v => v.plate), ['70-1234'], 'พนักงานเห็นเฉพาะรถที่ประจำ');
+  assert.deepStrictEqual(S.vehicles.map(v => v.plate), ['70-1234', 'ผก 999'], 'ผู้ควบคุมรถเห็นทุกคัน แม้ไม่ได้ประจำ');
   assert.deepStrictEqual(S.vehicles[0].staff, ['somchai'], 'ตัดผู้ใช้ที่ไม่มีจริงออก');
   const d = ctx.Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'), m = d.slice(0, 7);
   ok(call('add', { token: st, table: 'usage', row: { date: d, plate: '70-1234', startKm: 1000, endKm: 1120, purpose: 'ส่งน้ำแข็ง' } }));
   assert(!call('add', { token: st, table: 'usage', row: { date: d, plate: '70-1234', startKm: 1200, endKm: 1100, purpose: 'x' } }).ok, 'ไมล์ถอยหลัง');
-  assert(!call('add', { token: st, table: 'usage', row: { date: d, plate: 'ผก 999', startKm: 1, endKm: 2, purpose: 'x' } }).ok, 'ไม่มีสิทธิ์รถคันนี้');
+  assert(!call('add', { token: st, table: 'usage', row: { date: d, plate: 'ไม่มีคันนี้', startKm: 1, endKm: 2, purpose: 'x' } }).ok, 'ทะเบียนที่ไม่มีในระบบ');
   ok(call('add', { token: st, table: 'fuel', row: { date: d, plate: '70-1234', km: 1120, liters: 40, amount: 1300 } }));
   ok(call('add', { token: at, table: 'repair', row: { date: d, plate: '70-1234', kind: 'บำรุงรักษา', km: 1120, detail: '=เปลี่ยนน้ำมันเครื่อง', cost: 1800, nextKm: 1500 } }));
   const rep = ok(call('list', { token: st, table: 'repair', month: m }));

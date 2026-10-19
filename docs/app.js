@@ -223,7 +223,7 @@ $('#hisList').onclick = e => {
 // ================= dashboard =================
 async function loadDash() {
   const m = $('#dashMonth').value || ($('#dashMonth').value = today().slice(0, 7));
-  $('#dashSub').textContent = isAdmin() ? 'รถทุกคันในระบบ' : 'เฉพาะรถที่คุณประจำ';
+  $('#dashSub').textContent = 'รถทุกคันในระบบ';
   const seq = loadDash.seq = (loadDash.seq || 0) + 1;
   $('#dashBody').innerHTML = `<div class="card">${skeleton(2)}</div><div class="card">${skeleton(3)}</div>`;
   try {

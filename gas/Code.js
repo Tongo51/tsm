@@ -308,7 +308,8 @@ const findUser = username => readAll('Users').find(u => u.username === username)
 const isAdmin = u => u.role === 'admin';
 const admin = u => isAdmin(u) || fail('เฉพาะผู้ดูแลระบบเท่านั้น');
 const staffOf = v => String(v.staff || '').split(',').map(s => s.trim()).filter(Boolean);
-const myVehicles = user => readAll('Vehicles').filter(v => isAdmin(user) || staffOf(v).includes(user.username));
+// ผู้ใช้เว็บ TSM = ผู้ควบคุมการใช้รถ (คนขับกรอกผ่านแอปขาย) → ทุกคนเห็น/บันทึกได้ทุกคัน · "พนักงานประจำรถ" เป็นข้อมูลอ้างอิงเท่านั้น
+const myVehicles = () => readAll('Vehicles');
 const myVehicle = (user, plate) => myVehicles(user).find(v => v.plate === plate) || fail('ไม่มีสิทธิ์บันทึกข้อมูลรถทะเบียนนี้');
 
 // ================= sheet =================
