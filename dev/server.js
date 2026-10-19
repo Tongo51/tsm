@@ -20,7 +20,7 @@ function makeSheet(name) {
   });
   return {
     name, rows, getRange: range, getLastRow: () => rows.length, getMaxRows: () => 1000, setFrozenRows() {},
-    appendRow(vals) { rows.push(vals.map((v, j) => coerce(v, j + 1))); },
+    appendRow(vals) { rows.push(vals.map((v, j) => coerce(v, j + 1))); return this; },
     deleteRow(r) { rows.splice(r - 1, 1); },
   };
 }
@@ -119,6 +119,8 @@ if (process.argv[2] === 'test') {
   assert.deepStrictEqual([pu.length, pu[0].distance, pu[0].by], [1, 90, 'ต้น, เอ']);
   assert.deepStrictEqual(pf.map(r => [r.station, r.amount, r.km]), [['น้ำมัน', 1000, 1210]]);
   assert(!call('posDay', { ...day, plate: 'ไม่มี' }).ok, 'ทะเบียนที่ไม่มีในระบบ');
+  const lg = book.getSheetByName('log').rows.map(r => r[8]);
+  assert(lg.length === 5 && /ERROR: .*ลิตร/.test(lg[1]) && lg[2] === 'OK' && /ERROR: ไม่พบรถ/.test(lg[4]), 'จดทุกครั้งที่แอปขายส่งมา ทั้งผ่านและไม่ผ่าน');
   for (let i = 0; i < 5; i++) call('login', { username: 'somsri', password: 'bad' });
   assert(/15 นาที/.test(call('login', { username: 'somsri', password: 'pass1234' }).error), 'ล็อกหลังผิด 5 ครั้ง');
   console.log('ALL TESTS PASSED');

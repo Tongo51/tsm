@@ -31,9 +31,9 @@ const KEYED = ['posVehicles', 'posDay'];
 
 // ================= entry =================
 function doPost(e) {
-  let out, lock;
+  let out, lock, req = {};
   try {
-    const req = JSON.parse(e.postData.contents);
+    req = JSON.parse(e.postData.contents);
     const fn = API[req.action] || fail('ไม่รู้จักคำสั่งนี้');
     if (WRITES.includes(req.action)) { lock = LockService.getScriptLock(); lock.waitLock(20000); }
     const user = req.action === 'login' ? null : KEYED.includes(req.action) ? keyAuth(req.key) : auth(req.token);
@@ -43,6 +43,7 @@ function doPost(e) {
   } finally {
     if (lock) lock.releaseLock();
   }
+  if (req.action === 'posDay') logPos(req, out);
   return ContentService.createTextOutput(JSON.stringify(out)).setMimeType(ContentService.MimeType.JSON);
 }
 function doGet() { return ContentService.createTextOutput('TSM Vehicle API: OK'); }
@@ -297,6 +298,13 @@ function auth(token) {
     throw e;
   }
   return user;
+}
+// ทุกครั้งที่แอปขายส่งปิดวันเข้ามา (สำเร็จหรือไม่) จดลงแท็บ log — ไว้ตามรอยว่าสายไหนส่งมา/ติดอะไร
+function logPos(req, out) {
+  try {
+    const sh = book().getSheetByName('log') || book().insertSheet('log').appendRow(['เวลา', 'สาย', 'ทะเบียน', 'ไมล์ออก', 'ไมล์กลับ', 'น้ำมัน(บาท)', 'ลิตร', 'แก๊ส(บาท)', 'ผล']);
+    sh.appendRow([stamp(), txt(req.line), "'" + txt(req.plate), req.startKm, req.endKm, req.fuel, req.liters, req.gas, out.ok ? 'OK' : 'ERROR: ' + out.error]);
+  } catch (e) { /* log พังต้องไม่ทำให้คำตอบพัง */ }
 }
 function keyAuth(key) {
   const k = typeof INGEST_KEY === 'undefined' ? '' : INGEST_KEY;
