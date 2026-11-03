@@ -22,8 +22,11 @@ const SCHEMA = {
   Repairs: { tab: 'ซ่อมบำรุง', cols: [['id', 'id'], ['date', 'วันที่', 'd'], ['plate', 'ทะเบียน'], ['kind', 'ประเภทงาน'],
     ['km', 'เลขไมล์', 'n'], ['detail', 'รายละเอียด'], ['shop', 'อู่/ร้าน'], ['cost', 'ค่าใช้จ่าย (บาท)', 'n'],
     ['nextKm', 'นัดบำรุงรักษาครั้งถัดไป (เลขไมล์)', 'n'], ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก']] },
+  Tires: { tab: 'เปลี่ยนยาง', cols: [['id', 'id'], ['date', 'วันที่', 'd'], ['plate', 'ทะเบียน'], ['km', 'เลขไมล์', 'n'],
+    ['serial', 'เบอร์ยาง'], ['made', 'วันที่ผลิต'], ['position', 'ตำแหน่งยาง'], ['note', 'หมายเหตุ'],
+    ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก']] },
 };
-const LOGS = { usage: 'Usage', fuel: 'Fuel', repair: 'Repairs' };
+const LOGS = { usage: 'Usage', fuel: 'Fuel', repair: 'Repairs', tire: 'Tires' };
 const KINDS = ['บำรุงรักษา', 'ซ่อม'];
 const WRITES = ['add', 'del', 'saveVehicle', 'delVehicle', 'saveUser', 'delUser', 'changePassword', 'posDay'];
 // คำสั่งจากระบบอื่น (backend แอปขาย GoPMaS Mobile POS) — ยืนยันด้วยกุญแจร่วม INGEST_KEY ใน gas/secret.js (ไม่ขึ้น git)
@@ -98,6 +101,10 @@ const API = {
     } else if (name === 'Fuel') {
       o = { ...base, km: num(r.km, 'เลขไมล์'), liters: num(r.liters, 'จำนวนลิตร'), amount: num(r.amount, 'จำนวนเงิน'), station: txt(r.station) };
       if (!(o.liters > 0 && o.amount > 0)) fail('จำนวนลิตรและจำนวนเงินต้องมากกว่า 0');
+    } else if (name === 'Tires') {
+      // วันที่ผลิตเก็บเป็นข้อความตามที่พิมพ์บนแก้มยาง (เช่น 2524 = สัปดาห์ 25 ปี 2024)
+      o = { ...base, km: num(r.km, 'เลขไมล์'), serial: txt(r.serial) || fail('กรุณากรอกเบอร์ยาง'), made: txt(r.made),
+        position: txt(r.position) || fail('กรุณาระบุตำแหน่งยาง') };
     } else {
       o = { ...base, kind: KINDS.includes(r.kind) ? r.kind : fail('กรุณาเลือกประเภทงาน'), km: num(r.km, 'เลขไมล์'),
         detail: txt(r.detail, 1000) || fail('กรุณากรอกรายละเอียดงาน'), shop: txt(r.shop), cost: num(r.cost, 'ค่าใช้จ่าย'),

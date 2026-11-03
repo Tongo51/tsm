@@ -64,7 +64,7 @@ const adminPw = String(logs.pop()).match(/รหัสผ่าน: (\S+)/)[1];
 if (process.argv[2] === 'test') {
   const assert = require('assert');
   const ok = r => { assert(r.ok, r.error); return r.data; };
-  assert.deepStrictEqual(book.sheets.map(s => s.name), ['ผู้ใช้', 'รถ', 'บันทึกการใช้รถ', 'ค่าน้ำมัน', 'ซ่อมบำรุง']);
+  assert.deepStrictEqual(book.sheets.map(s => s.name), ['ผู้ใช้', 'รถ', 'บันทึกการใช้รถ', 'ค่าน้ำมัน', 'ซ่อมบำรุง', 'เปลี่ยนยาง']);
   assert(!call('login', { username: 'admin', password: 'wrong' }).ok);
   const A = ok(call('login', { username: 'ADMIN', password: adminPw }));
   const at = A.token;
@@ -85,6 +85,9 @@ if (process.argv[2] === 'test') {
   ok(call('add', { token: at, table: 'repair', row: { date: d, plate: '70-1234', kind: 'บำรุงรักษา', km: 1120, detail: '=เปลี่ยนน้ำมันเครื่อง', cost: 1800, nextKm: 1500 } }));
   const rep = ok(call('list', { token: st, table: 'repair', month: m }));
   assert.strictEqual(rep[0].detail, '=เปลี่ยนน้ำมันเครื่อง', 'ข้อความขึ้นต้น = ต้องไม่กลายเป็นสูตร');
+  assert(!call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1130, serial: '215/70R15' } }).ok, 'ต้องระบุตำแหน่งยาง');
+  ok(call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1130, serial: '215/70R15', made: '0524', position: 'หน้าซ้าย' } }));
+  assert.strictEqual(ok(call('list', { token: st, table: 'tire', month: m }))[0].made, '0524', 'วันที่ผลิตต้องไม่เสียเลข 0 นำหน้า');
   const D = ok(call('dashboard', { token: at, month: m }));
   assert.deepStrictEqual(D.totals, { distance: 120, liters: 40, fuel: 1300, repair: 1800, trips: 1, vehicles: 2 });
   assert.strictEqual(D.vehicles[0].kmPerL, 3);

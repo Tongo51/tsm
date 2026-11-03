@@ -342,7 +342,7 @@
         <div class="plates" id="plates" role="listbox" aria-label="เลือกรถ"></div>
         <div class="card vehicle" id="vehCard"></div>
         <div class="seg" id="recSeg" style="margin-top:16px">
-          <button type="button" data-t="usage">ใช้รถ</button><button type="button" data-t="fuel">เติมน้ำมัน</button><button type="button" data-t="repair">ซ่อม / บำรุง</button>
+          <button type="button" data-t="usage">ใช้รถ</button><button type="button" data-t="fuel">เติมน้ำมัน</button><button type="button" data-t="repair">ซ่อมบำรุง</button><button type="button" data-t="tire">เปลี่ยนยาง</button>
         </div>
 
         <form class="card form rec" data-table="usage" style="margin-top:12px">
@@ -391,6 +391,22 @@
           </div>
           <button class="btn primary block">บันทึกงานซ่อม / บำรุง</button>
         </form>
+
+        <form class="card form rec" data-table="tire" style="margin-top:12px" hidden>
+          <div class="row2">
+            <label class="field"><span>วันที่</span><input type="date" name="date" required></label>
+            <label class="field"><span>เลขไมล์</span><input type="number" name="km" inputmode="decimal" step="any" min="0" required></label>
+          </div>
+          <div class="row2">
+            <label class="field"><span>เบอร์ยาง</span><input name="serial" maxlength="300" required placeholder="เช่น 215/70R15"></label>
+            <label class="field"><span>วันที่ผลิต <i>(ไม่บังคับ)</i></span><input name="made" maxlength="300" placeholder="เช่น 2524"></label>
+          </div>
+          <label class="field"><span>ตำแหน่งยาง</span><input name="position" list="tirePos" maxlength="300" required placeholder="เลือกหรือพิมพ์เอง"></label>
+          <datalist id="tirePos"><option>หน้าซ้าย</option><option>หน้าขวา</option><option>หลังซ้าย</option><option>หลังขวา</option>
+            <option>หลังซ้ายใน</option><option>หลังซ้ายนอก</option><option>หลังขวาใน</option><option>หลังขวานอก</option><option>ยางอะไหล่</option></datalist>
+          <label class="field"><span>หมายเหตุ <i>(ไม่บังคับ)</i></span><input name="note" maxlength="300"></label>
+          <button class="btn primary block">บันทึกการเปลี่ยนยาง</button>
+        </form>
       </div>
     </section>
 
@@ -398,7 +414,7 @@
     <section id="v-history" class="view">
       <div class="page-head"><h2>ประวัติ</h2></div>
       <div class="filters">
-        <div class="seg" id="hisSeg"><button type="button" data-t="usage">ใช้รถ</button><button type="button" data-t="fuel">น้ำมัน</button><button type="button" data-t="repair">ซ่อม / บำรุง</button></div>
+        <div class="seg" id="hisSeg"><button type="button" data-t="usage">ใช้รถ</button><button type="button" data-t="fuel">น้ำมัน</button><button type="button" data-t="repair">ซ่อมบำรุง</button><button type="button" data-t="tire">ยาง</button></div>
         <div class="row2"><select class="input" id="hisPlate" aria-label="ทะเบียนรถ"></select><input class="input" type="month" id="hisMonth" aria-label="เดือน"></div>
       </div>
       <div class="sum" id="hisSum"></div>

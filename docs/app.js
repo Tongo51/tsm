@@ -183,6 +183,8 @@ const TYPES = {
   repair: { sum: rows => `<span>${rows.length} รายการ</span><b>${baht(sumOf(rows, 'cost'))}</b>`,
     item: r => [esc(r.detail), [r.shop && esc(r.shop), 'ไมล์ ' + n(r.km), r.nextKm !== '' && 'นัดครั้งถัดไป ' + n(r.nextKm)].filter(Boolean).join(' · '),
       `<b>${baht(r.cost)}</b><span class="tag ${r.kind === 'ซ่อม' ? 'warn' : 'gold'}">${esc(r.kind)}</span>`] },
+  tire: { sum: rows => `<span>${rows.length} เส้น</span>`,
+    item: r => [esc(r.position), [esc(r.serial), r.made && 'ผลิต ' + esc(r.made)].filter(Boolean).join(' · '), `<b>ไมล์ ${n(r.km)}</b>`] },
 };
 const skeleton = k => Array(k).fill('<div class="skeleton"></div>').join('');
 const canDelete = r => isAdmin() || (r.by === S.user.username && String(r.at).startsWith(today()));
