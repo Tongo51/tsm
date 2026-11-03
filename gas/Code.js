@@ -24,7 +24,7 @@ const SCHEMA = {
     ['nextKm', 'นัดบำรุงรักษาครั้งถัดไป (เลขไมล์)', 'n'], ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก']] },
   Tires: { tab: 'เปลี่ยนยาง', cols: [['id', 'id'], ['date', 'วันที่', 'd'], ['plate', 'ทะเบียน'], ['km', 'เลขไมล์', 'n'],
     ['serial', 'เบอร์ยาง'], ['made', 'วันที่ผลิต'], ['position', 'ตำแหน่งยาง'], ['note', 'หมายเหตุ'],
-    ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก']] },
+    ['by', 'ผู้บันทึก'], ['at', 'เวลาบันทึก'], ['cost', 'ค่าใช้จ่าย (บาท)', 'n']] },  // cost เพิ่มทีหลัง ต่อท้ายไว้ไม่ให้แถวเก่าเลื่อน
 };
 const LOGS = { usage: 'Usage', fuel: 'Fuel', repair: 'Repairs', tire: 'Tires' };
 const KINDS = ['บำรุงรักษา', 'ซ่อม'];
@@ -104,7 +104,8 @@ const API = {
     } else if (name === 'Tires') {
       // วันที่ผลิตเก็บเป็นข้อความตามที่พิมพ์บนแก้มยาง (เช่น 2524 = สัปดาห์ 25 ปี 2024)
       o = { ...base, km: num(r.km, 'เลขไมล์'), serial: txt(r.serial) || fail('กรุณากรอกเบอร์ยาง'), made: txt(r.made),
-        position: txt(r.position) || fail('กรุณาระบุตำแหน่งยาง') };
+        position: txt(r.position) || fail('กรุณาระบุตำแหน่งยาง'), cost: num(r.cost, 'ค่าใช้จ่าย') };
+      header('Tires');  // ชีตที่ setup ไว้ก่อนมีคอลัมน์ค่าใช้จ่าย จะได้หัวคอลัมน์ใหม่เอง
     } else {
       o = { ...base, kind: KINDS.includes(r.kind) ? r.kind : fail('กรุณาเลือกประเภทงาน'), km: num(r.km, 'เลขไมล์'),
         detail: txt(r.detail, 1000) || fail('กรุณากรอกรายละเอียดงาน'), shop: txt(r.shop), cost: num(r.cost, 'ค่าใช้จ่าย'),
@@ -142,16 +143,16 @@ const API = {
     const of = (rows, plate, m) => rows.filter(r => (plate ? r.plate === plate : plates.has(r.plate)) && (!m || r.date.startsWith(m)));
 
     const vehicles = vs.map(v => {
-      const u = of(L.Usage, v.plate, month), f = of(L.Fuel, v.plate, month), rp = of(L.Repairs, v.plate, month);
+      const u = of(L.Usage, v.plate, month), f = of(L.Fuel, v.plate, month), rp = of(L.Repairs, v.plate, month), tr = of(L.Tires, v.plate, month);
       const distance = sum(u, 'distance'), liters = sum(f, 'liters');
       return { plate: v.plate, name: v.name, lastKm: km[v.plate] || 0, trips: u.length, distance, liters,
-        fuel: sum(f, 'amount'), repair: sum(rp, 'cost'), kmPerL: liters ? round(distance / liters) : null,
+        fuel: sum(f, 'amount'), repair: sum(rp, 'cost'), tire: sum(tr, 'cost'), kmPerL: liters ? round(distance / liters) : null,
         ...service(L, v.plate) };
-    }).sort((a, b) => (b.fuel + b.repair) - (a.fuel + a.repair));
+    }).sort((a, b) => (b.fuel + b.repair + b.tire) - (a.fuel + a.repair + a.tire));
 
     const trend = [-5, -4, -3, -2, -1, 0].map(k => shiftMonth(month, k)).map(m => ({
       month: m, fuel: sum(of(L.Fuel, null, m), 'amount'), repair: sum(of(L.Repairs, null, m), 'cost'),
-      distance: sum(of(L.Usage, null, m), 'distance') }));
+      tire: sum(of(L.Tires, null, m), 'cost'), distance: sum(of(L.Usage, null, m), 'distance') }));
 
     const days = d => Math.round((Date.parse(d) - Date.parse(t)) / 864e5);
     const due = (d, what) => { const n = days(d); return n < 0 ? what + 'หมดอายุแล้ว ' + -n + ' วัน' : what + 'จะหมดอายุในอีก ' + n + ' วัน'; };
@@ -170,7 +171,7 @@ const API = {
 
     const total = k => round(vehicles.reduce((s, v) => s + v[k], 0));
     return { month, vehicles, trend, alerts: alerts.sort((a, b) => (a.level === 'danger' ? 0 : 1) - (b.level === 'danger' ? 0 : 1)),
-      totals: { distance: total('distance'), liters: total('liters'), fuel: total('fuel'), repair: total('repair'), trips: total('trips'), vehicles: vs.length } };
+      totals: { distance: total('distance'), liters: total('liters'), fuel: total('fuel'), repair: total('repair'), tire: total('tire'), trips: total('trips'), vehicles: vs.length } };
   },
 
   // ---------- แอปขาย (ยืนยันด้วยกุญแจ) ----------
@@ -364,7 +365,7 @@ function upsert(name, id, o) {
   else if (old) remove(name, old);
   else if (o) append(name, o);
 }
-const logs = () => ({ Usage: readAll('Usage'), Fuel: readAll('Fuel'), Repairs: readAll('Repairs') });
+const logs = () => ({ Usage: readAll('Usage'), Fuel: readAll('Fuel'), Repairs: readAll('Repairs'), Tires: readAll('Tires') });
 // รอบบำรุงรักษา = งาน "บำรุงรักษา" ครั้งล่าสุด: ทำที่เลขไมล์ไหน นัดครั้งถัดไปที่เลขไมล์ไหน
 function service(L, plate) {
   const r = L.Repairs.filter(x => x.plate === plate && x.kind === KINDS[0]).sort(byDate).pop();
@@ -376,6 +377,7 @@ function mileage(L) {  // เลขไมล์ล่าสุดของแต
   L.Usage.forEach(r => bump(r.plate, r.endKm));
   L.Fuel.forEach(r => bump(r.plate, r.km));
   L.Repairs.forEach(r => bump(r.plate, r.km));
+  L.Tires.forEach(r => bump(r.plate, r.km));
   return m;
 }
 

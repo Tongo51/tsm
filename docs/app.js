@@ -183,8 +183,8 @@ const TYPES = {
   repair: { sum: rows => `<span>${rows.length} รายการ</span><b>${baht(sumOf(rows, 'cost'))}</b>`,
     item: r => [esc(r.detail), [r.shop && esc(r.shop), 'ไมล์ ' + n(r.km), r.nextKm !== '' && 'นัดครั้งถัดไป ' + n(r.nextKm)].filter(Boolean).join(' · '),
       `<b>${baht(r.cost)}</b><span class="tag ${r.kind === 'ซ่อม' ? 'warn' : 'gold'}">${esc(r.kind)}</span>`] },
-  tire: { sum: rows => `<span>${rows.length} เส้น</span>`,
-    item: r => [esc(r.position), [esc(r.serial), r.made && 'ผลิต ' + esc(r.made)].filter(Boolean).join(' · '), `<b>ไมล์ ${n(r.km)}</b>`] },
+  tire: { sum: rows => `<span>${rows.length} เส้น</span><b>${baht(sumOf(rows, 'cost'))}</b>`,
+    item: r => [esc(r.position), [esc(r.serial), r.made && 'ผลิต ' + esc(r.made), 'ไมล์ ' + n(r.km)].filter(Boolean).join(' · '), `<b>${r.cost === '' ? '–' : baht(r.cost)}</b>`] },
 };
 const skeleton = k => Array(k).fill('<div class="skeleton"></div>').join('');
 const canDelete = r => isAdmin() || (r.by === S.user.username && String(r.at).startsWith(today()));
@@ -237,14 +237,15 @@ async function loadDash() {
 }
 $('#dashMonth').onchange = loadDash;
 
+const spend = x => x.fuel + x.repair + x.tire;   // ค่าใช้จ่ายรวม: น้ำมัน + ซ่อมบำรุง + ยาง
 function renderDash(d) {
-  const t = d.totals, cost = t.fuel + t.repair;
+  const t = d.totals, cost = spend(t);
   renderDash.last = d.trend;   // ให้ tooltip อ่าน
   $('#dashBody').innerHTML = `
     <div class="card hero">
       <span class="label">ค่าใช้จ่ายรถ ${thMonth(d.month)}</span>
       <div class="hero-num">${n(Math.round(cost))}<small>บาท</small></div>
-      <div class="split"><span><i class="key fuel"></i>ค่าน้ำมัน <b>${baht(t.fuel)}</b></span><span><i class="key repair"></i>ซ่อมบำรุง <b>${baht(t.repair)}</b></span></div>
+      <div class="split"><span><i class="key fuel"></i>ค่าน้ำมัน <b>${baht(t.fuel)}</b></span><span><i class="key repair"></i>ซ่อมบำรุง <b>${baht(t.repair)}</b></span><span><i class="key tire"></i>ยาง <b>${baht(t.tire)}</b></span></div>
       <div class="stats">
         <div><span class="label">ระยะทาง</span><b>${n(t.distance)}</b><small>กม.</small></div>
         <div><span class="label">ต้นทุนต่อ กม.</span><b>${t.distance ? n(cost / t.distance) : '–'}</b><small>บาท</small></div>
@@ -254,22 +255,22 @@ function renderDash(d) {
     </div>
     ${d.alerts.length ? `<div class="alerts">${d.alerts.map(a => `<div class="alert ${a.level}">${ICON[a.level]}<b>${esc(a.title)}</b><span>${esc(a.text)}</span></div>`).join('')}</div>` : ''}
     <div class="card section">
-      <div class="section-head"><h3>ค่าใช้จ่าย 6 เดือน</h3><div class="legend"><span><i class="key fuel"></i>ค่าน้ำมัน</span><span><i class="key repair"></i>ซ่อมบำรุง</span></div></div>
+      <div class="section-head"><h3>ค่าใช้จ่าย 6 เดือน</h3><div class="legend"><span><i class="key fuel"></i>ค่าน้ำมัน</span><span><i class="key repair"></i>ซ่อมบำรุง</span><span><i class="key tire"></i>ยาง</span></div></div>
       ${trendChart(d.trend, d.month)}
     </div>
     <div class="card section">
       <div class="section-head"><h3>รายคัน</h3><span class="meta">${n(t.vehicles)} คัน · เรียงตามค่าใช้จ่าย</span></div>
       <div>${d.vehicles.length ? d.vehicles.map(v => `<div class="veh">
         <div class="veh-top">${plateChip(v, false, 'span', 'sm')}<div class="item-main"><span class="meta">${esc(v.name || '')}</span><span class="meta num">ไมล์ล่าสุด ${n(v.lastKm)}</span></div>
-          <div class="item-side"><b>${baht(v.fuel + v.repair)}</b></div></div>
-        <div class="veh-nums"><span>ระยะทาง<b>${n(v.distance)} กม.</b></span><span>ค่าน้ำมัน<b>${baht(v.fuel)}</b></span><span>ซ่อมบำรุง<b>${baht(v.repair)}</b></span><span>อัตราสิ้นเปลือง<b>${v.kmPerL ? n(v.kmPerL) + ' กม./ล.' : '–'}</b></span></div>
+          <div class="item-side"><b>${baht(spend(v))}</b></div></div>
+        <div class="veh-nums"><span>ระยะทาง<b>${n(v.distance)} กม.</b></span><span>ค่าน้ำมัน<b>${baht(v.fuel)}</b></span><span>ซ่อมบำรุง<b>${baht(v.repair)}</b></span><span>ยาง<b>${baht(v.tire)}</b></span><span>อัตราสิ้นเปลือง<b>${v.kmPerL ? n(v.kmPerL) + ' กม./ล.' : '–'}</b></span></div>
         ${serviceMeter(v)}</div>`).join('') : '<div class="empty"><b>ยังไม่มีรถในระบบ</b></div>'}</div>
     </div>`;
   bindTip();
 }
 
 function trendChart(trend, month) {
-  const max = Math.max(...trend.map(x => x.fuel + x.repair));
+  const max = Math.max(...trend.map(x => spend(x)));
   if (!max) return '<div class="empty"><b>ยังไม่มีค่าใช้จ่ายในช่วงนี้</b></div>';
   const step = niceStep(max / 2), top = step * 2;
   const pct = v => v / top * 100;
@@ -277,16 +278,16 @@ function trendChart(trend, month) {
       <div class="y-axis">${[0, step, top].map(v => `<span style="bottom:${pct(v)}%">${compact(v)}</span>`).join('')}</div>
       <div class="plot">${[0, step, top].map(v => `<i class="grid-line" style="bottom:${pct(v)}%"></i>`).join('')}
         ${trend.map((x, i) => {
-          const sum = x.fuel + x.repair;
-          return `<button class="col" data-i="${i}" aria-label="${thMonth(x.month)} ค่าน้ำมัน ${n(x.fuel)} บาท ซ่อมบำรุง ${n(x.repair)} บาท">
+          const sum = spend(x);
+          return `<button class="col" data-i="${i}" aria-label="${thMonth(x.month)} ค่าน้ำมัน ${n(x.fuel)} บาท ซ่อมบำรุง ${n(x.repair)} บาท ยาง ${n(x.tire)} บาท">
             ${x.month === month && sum ? `<span class="cap" style="bottom:${pct(sum)}%">${compact(sum)}</span>` : ''}
-            <span class="stack" style="height:${pct(sum)}%">${x.repair ? `<i class="repair" style="flex:${x.repair}"></i>` : ''}${x.fuel ? `<i class="fuel" style="flex:${x.fuel}"></i>` : ''}</span></button>`;
+            <span class="stack" style="height:${pct(sum)}%">${x.tire ? `<i class="tire" style="flex:${x.tire}"></i>` : ''}${x.repair ? `<i class="repair" style="flex:${x.repair}"></i>` : ''}${x.fuel ? `<i class="fuel" style="flex:${x.fuel}"></i>` : ''}</span></button>`;
         }).join('')}
       </div><div class="tip" id="tip"></div>
     </div>
     <div class="x-axis">${trend.map(x => `<span class="${x.month === month ? 'on' : ''}">${thMonth(x.month, 'short').split(' ')[0]}</span>`).join('')}</div>
-    <details><summary>ดูเป็นตาราง</summary><table><thead><tr><th>เดือน</th><th>ค่าน้ำมัน</th><th>ซ่อมบำรุง</th><th>รวม</th><th>ระยะทาง</th></tr></thead>
-      <tbody>${trend.map(x => `<tr><td>${thMonth(x.month, 'short')}</td><td>${n(x.fuel)}</td><td>${n(x.repair)}</td><td>${n(x.fuel + x.repair)}</td><td>${n(x.distance)} กม.</td></tr>`).join('')}</tbody></table></details>`;
+    <details><summary>ดูเป็นตาราง</summary><table><thead><tr><th>เดือน</th><th>ค่าน้ำมัน</th><th>ซ่อมบำรุง</th><th>ยาง</th><th>รวม</th><th>ระยะทาง</th></tr></thead>
+      <tbody>${trend.map(x => `<tr><td>${thMonth(x.month, 'short')}</td><td>${n(x.fuel)}</td><td>${n(x.repair)}</td><td>${n(x.tire)}</td><td>${n(spend(x))}</td><td>${n(x.distance)} กม.</td></tr>`).join('')}</tbody></table></details>`;
   function niceStep(v) { const p = 10 ** Math.floor(Math.log10(v)); return [1, 2, 2.5, 5, 10].map(k => k * p).find(s => s >= v); }
 }
 function bindTip() {
@@ -295,7 +296,7 @@ function bindTip() {
   const tip = $('#tip'), trend = [...chart.querySelectorAll('.col')];
   const showTip = col => {
     const x = renderDash.last[col.dataset.i];
-    tip.innerHTML = `<b>${thMonth(x.month)}</b><div class="r"><span>ค่าน้ำมัน</span><span>${baht(x.fuel)}</span></div><div class="r"><span>ซ่อมบำรุง</span><span>${baht(x.repair)}</span></div><div class="r"><span>รวม</span><b>${baht(x.fuel + x.repair)}</b></div>`;
+    tip.innerHTML = `<b>${thMonth(x.month)}</b><div class="r"><span>ค่าน้ำมัน</span><span>${baht(x.fuel)}</span></div><div class="r"><span>ซ่อมบำรุง</span><span>${baht(x.repair)}</span></div><div class="r"><span>ยาง</span><span>${baht(x.tire)}</span></div><div class="r"><span>รวม</span><b>${baht(spend(x))}</b></div>`;
     const c = chart.getBoundingClientRect(), r = col.getBoundingClientRect(), half = tip.offsetWidth / 2;
     tip.style.left = Math.min(Math.max(r.left - c.left + r.width / 2, half), c.width - half) + 'px';
     tip.style.top = Math.max(col.querySelector('.stack').getBoundingClientRect().top - c.top - 8, 0) + 'px';

@@ -17,6 +17,7 @@
     --rule:rgba(43,36,21,.09); --rule-2:rgba(43,36,21,.16);
     --gold:#B08D2E; --gold-deep:#8C6F1F; --gold-wash:rgba(176,141,46,.10);
     --frost:#3A78B0;                       /* ชุดข้อมูลที่ 2 ในกราฟ (ซ่อมบำรุง) */
+    --rubber:#8A5A83;                      /* ชุดข้อมูลที่ 3 ในกราฟ (เปลี่ยนยาง) */
     --ok:#3E7C4F; --warn:#B7791F; --danger:#B3402E;
     --lift:0 0 0 1px rgba(43,36,21,.06), 0 1px 2px -1px rgba(43,36,21,.08), 0 6px 16px -8px rgba(43,36,21,.10);
     --r-s:10px; --r-m:16px; --r-l:22px;
@@ -214,7 +215,7 @@
   .split { display:flex; gap:6px 20px; flex-wrap:wrap; font-size:14px; color:var(--ink-3); }
   .split b { color:var(--ink); font-weight:500; font-variant-numeric:tabular-nums; }
   .key { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:6px; vertical-align:baseline; }
-  .key.fuel { background:var(--gold); } .key.repair { background:var(--frost); }
+  .key.fuel { background:var(--gold); } .key.repair { background:var(--frost); } .key.tire { background:var(--rubber); }
   .stats { display:grid; grid-template-columns:repeat(4, 1fr); margin-top:18px; padding-top:16px; border-top:1px solid var(--rule); gap:12px; }
   .stats div { display:flex; flex-direction:column; min-width:0; }
   .stats b { font-size:19px; font-weight:600; font-variant-numeric:tabular-nums; }
@@ -239,7 +240,7 @@
   .col .stack { width:min(24px, 60%); display:flex; flex-direction:column; gap:2px; min-height:0; transition:opacity .15s; }
   .col .stack > i { display:block; min-height:2px; }
   .col .stack > i:first-child { border-radius:4px 4px 0 0; }
-  .col .stack .fuel { background:var(--gold); } .col .stack .repair { background:var(--frost); }
+  .col .stack .fuel { background:var(--gold); } .col .stack .repair { background:var(--frost); } .col .stack .tire { background:var(--rubber); }
   .col .cap { position:absolute; font-size:12px; font-weight:600; color:var(--ink); transform:translateY(-100%); padding-bottom:4px; white-space:nowrap; font-variant-numeric:tabular-nums; }
   .plot:hover .col .stack, .plot:focus-within .col .stack { opacity:.45; }
   .plot .col:hover .stack, .plot .col:focus .stack { opacity:1; }
@@ -401,7 +402,10 @@
             <label class="field"><span>เบอร์ยาง</span><input name="serial" maxlength="300" required placeholder="เช่น 215/70R15"></label>
             <label class="field"><span>วันที่ผลิต <i>(ไม่บังคับ)</i></span><input name="made" maxlength="300" placeholder="เช่น 2524"></label>
           </div>
-          <label class="field"><span>ตำแหน่งยาง</span><input name="position" list="tirePos" maxlength="300" required placeholder="เลือกหรือพิมพ์เอง"></label>
+          <div class="row2">
+            <label class="field"><span>ตำแหน่งยาง</span><input name="position" list="tirePos" maxlength="300" required placeholder="เลือกหรือพิมพ์เอง"></label>
+            <label class="field"><span>ค่าใช้จ่าย (บาท)</span><input type="number" name="cost" inputmode="decimal" step="any" min="0" required></label>
+          </div>
           <datalist id="tirePos"><option>หน้าซ้าย</option><option>หน้าขวา</option><option>หลังซ้าย</option><option>หลังขวา</option>
             <option>หลังซ้ายใน</option><option>หลังซ้ายนอก</option><option>หลังขวาใน</option><option>หลังขวานอก</option><option>ยางอะไหล่</option></datalist>
           <label class="field"><span>หมายเหตุ <i>(ไม่บังคับ)</i></span><input name="note" maxlength="300"></label>

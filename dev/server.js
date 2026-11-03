@@ -85,11 +85,11 @@ if (process.argv[2] === 'test') {
   ok(call('add', { token: at, table: 'repair', row: { date: d, plate: '70-1234', kind: 'บำรุงรักษา', km: 1120, detail: '=เปลี่ยนน้ำมันเครื่อง', cost: 1800, nextKm: 1500 } }));
   const rep = ok(call('list', { token: st, table: 'repair', month: m }));
   assert.strictEqual(rep[0].detail, '=เปลี่ยนน้ำมันเครื่อง', 'ข้อความขึ้นต้น = ต้องไม่กลายเป็นสูตร');
-  assert(!call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1130, serial: '215/70R15' } }).ok, 'ต้องระบุตำแหน่งยาง');
-  ok(call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1130, serial: '215/70R15', made: '0524', position: 'หน้าซ้าย' } }));
+  assert(!call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1120, serial: '215/70R15' } }).ok, 'ต้องระบุตำแหน่งยาง');
+  ok(call('add', { token: st, table: 'tire', row: { date: d, plate: '70-1234', km: 1120, serial: '215/70R15', made: '0524', position: 'หน้าซ้าย', cost: 3500 } }));
   assert.strictEqual(ok(call('list', { token: st, table: 'tire', month: m }))[0].made, '0524', 'วันที่ผลิตต้องไม่เสียเลข 0 นำหน้า');
   const D = ok(call('dashboard', { token: at, month: m }));
-  assert.deepStrictEqual(D.totals, { distance: 120, liters: 40, fuel: 1300, repair: 1800, trips: 1, vehicles: 2 });
+  assert.deepStrictEqual(D.totals, { distance: 120, liters: 40, fuel: 1300, repair: 1800, tire: 3500, trips: 1, vehicles: 2 });
   assert.strictEqual(D.vehicles[0].kmPerL, 3);
   assert.strictEqual(D.trend.length, 6); assert.strictEqual(D.trend[5].month, m);
   assert(D.alerts.some(a => a.title === '70-1234' && /บำรุงรักษา อีก 380/.test(a.text)), 'เตือนบำรุงรักษา');
